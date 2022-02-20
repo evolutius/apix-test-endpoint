@@ -2,6 +2,7 @@ import {ApiXConfig, ApiXDataManager, ApiXManager} from '@evolutius/apix';
 import {ApiXClearanceLevelDeterminator} from '@evolutius/apix';
 import {ApiXClearanceLevel} from '@evolutius/apix';
 import {ApiXMethod} from '@evolutius/apix';
+import {ApiXMemoryStore} from '@evolutius/apix';
 import {Request} from 'express';
 import {Response} from 'express';
 
@@ -13,7 +14,12 @@ const globalDataConfig = {
 class MyDeterminator implements ApiXClearanceLevelDeterminator {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     determine(appMethod: ApiXMethod, req: Request): ApiXClearanceLevel {
-        return ApiXClearanceLevel.CL0;
+        const apiKey = req.query['api_key'];
+        if (apiKey && globalDataConfig.apiKey == apiKey) {
+            return ApiXClearanceLevel.CL0;
+        } else {
+            return ApiXClearanceLevel.CL6;
+        }
     }
 }
 
@@ -42,16 +48,18 @@ function testEndpoint(req: Request, res: Response): unknown {
 }
 
 const testEndpointMethod: ApiXMethod = {
-    entity: 'test',
-    method: 'endpoint',
-    requestHandler: testEndpoint
+    entity: 'apix',
+    method: 'test',
+    requestHandler: testEndpoint,
+    requiredClearanceLevel: ApiXClearanceLevel.CL0
 };
 
 const determinator = new MyDeterminator();
 const dataManager = new MyDataManager();
 const appConfig = new ApiXConfig();
+const cache = new ApiXMemoryStore(appConfig);
 
-const appManager = new ApiXManager(determinator, dataManager, appConfig);
+const appManager = new ApiXManager(determinator, dataManager, appConfig, cache);
 
 appManager.registerAppMethod(testEndpointMethod);
 
